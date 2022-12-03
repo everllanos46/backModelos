@@ -1,9 +1,14 @@
 from fastapi import FastAPI
+
 from fastapi.middleware.cors import CORSMiddleware
+
+from conection import connect_db
+
 import tweepy
+import json
 
 app = FastAPI()
-
+cursor = connect_db()
 origins = ["*"]
 
 app.add_middleware(
@@ -25,34 +30,53 @@ client = tweepy.Client(bearer_token, api_key, api_secret, access_token, access_t
 auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_token_secret)
 api= tweepy.API(auth)
 
-@app.get("/{tema}")
-async def root(tema:str):
-    search_term = f'{tema} -is:retweet'
+# @app.get("/{tema}")
+# async def root(tema:str):
+#     search_term = f'{tema} -is:retweet'
 
-    tweet_cursor = tweepy.Cursor(api.search_tweets, q= search_term, lang="es",
-    tweet_mode="extended").items(10)
+#     tweet_cursor = tweepy.Cursor(api.search_tweets, q= search_term, lang="es",
+#     tweet_mode="extended").items(10)
 
-    tweets = [tweet.full_text for tweet in tweet_cursor]
-    return {"message": tweets}
+#     tweets = [tweet.full_text for tweet in tweet_cursor]
+#     return {"message": tweets}
 
-@app.post("/post_tweet")
-async def root():
-    
+# @app.post("/post_tweet")
+# async def root():
+#     tweet_cursor = client.search_recent_tweets(query="petro -is:retweet", max_results=10, user_fields = ['name','username'])
+#     return {"message": tweet_cursor}
 
-    tweet_cursor = client.search_recent_tweets(query="petro -is:retweet", max_results=10, user_fields = ['name','username'])
-    return {"message": tweet_cursor}
+# @app.post("/probando")
+# async def root():
+#     tweet_cursor = client.get_users(usernames=['everllanos45'])
+#     return {"message": tweet_cursor}
 
-@app.post("/probando")
-async def root():
-    tweet_cursor = client.get_users(usernames=['everllanos45'])
-    return {"message": tweet_cursor}
+@app.get("/historial")
+async def getHIstorial():
+    json_data= {}
+    json_data['history'] = []
+    tweets_json = []
+    dbcursor = cursor.cursor()
+    dbcursor.execute("select * from Historial")
+    row=dbcursor.fetchall()
+    tweetJson =[list(elem) for elem in row]
+    for registro in tweetJson:
+        arreglo={
+            'code': registro[0],
+            'name': registro[1],
+        }
+        json_data['history'].append(arreglo)
+    return json_data['history']
 
 @app.post("/getTweets/{tema}")
 async def root(tema:str):
+    history = await getHIstorial()
     tweets_json = []
-    place = api.search_geo(query=tema, granularity="city")
-    place_id = place[0].id
-    searchs = api.search_tweets(q='place:%s' % place_id,geocode='10.46314,-73.253222,1000km', count='10')
+    dbcursor = cursor.cursor()
+    t= str(len(history))
+    dbcursor.execute("insert into [ModelosBd].[dbo].[Historial] (Code, NameSearched) values( "+ t+ ",'" +tema + "')" )
+    cursor.commit()
+    # place_id = place[0].id
+    searchs = api.search_tweets(q=tema, count='100')
     for tweet in searchs:
         tweetJson = tweet._json
         tweets_json.append(tweetJson)
