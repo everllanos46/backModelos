@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
+from textblob import TextBlob
 
 from conection import connect_db
 
@@ -81,3 +82,4 @@ async def root(tema:str):
         tweetJson = tweet._json
         tweets_json.append(tweetJson)
     return {"message": tweets_json}
+
